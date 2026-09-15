@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Autenticacao de clientes por CPF
+
+Parameters:
+  DatabaseUrl: { Type: String, NoEcho: true }
+  JwtKey: { Type: String, NoEcho: true, MinLength: 32 }
+  PrivateSubnetIds: { Type: List<AWS::EC2::Subnet::Id> }
+  LambdaSecurityGroupIds: { Type: List<AWS::EC2::SecurityGroup::Id> }
+
+Resources:
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      CodeUri: .
+      Handler: functions/auth/index.handler
+      Timeout: 10
+      MemorySize: 256
+      Tracing: Active
+      VpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        SecurityGroupIds: !Ref LambdaSecurityGroupIds
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          DATABASE_SSL: 'true'
+          JWT_KEY: !Ref JwtKey
+          JWT_ISSUER: OficinaMecanica
+          JWT_AUDIENCE: OficinaMecanica.Customer
+      Events:
+        Authenticate:
+          Type: Api
+          Properties: { Path: /auth/customer, Method: post }
+
+Outputs:
+  AuthenticationEndpoint:
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/auth/customer
+

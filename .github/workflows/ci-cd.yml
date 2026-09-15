@@ -1,0 +1,41 @@
+name: CI/CD Serverless
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: SonarQube analysis
+        if: env.SONAR_TOKEN != '' && env.SONAR_HOST_URL != ''
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+        with:
+          args: -Dsonar.projectKey=oficina-mecanica-serverless -Dsonar.sources=functions -Dsonar.tests=functions -Dsonar.test.inclusions=**/*.test.mjs
+      - uses: aws-actions/setup-sam@v2
+      - run: sam validate --lint --template-file template-auth.yaml
+      - run: sam validate --lint --template-file template-notifications.yaml
+      - run: sam build --template-file template-auth.yaml --build-dir .aws-sam/auth
+      - run: sam build --template-file template-notifications.yaml --build-dir .aws-sam/notifications

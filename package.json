@@ -1,0 +1,16 @@
+{
+  "name": "oficina-mecanica-serverless",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check functions/auth/index.mjs && node --check functions/notifications/index.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.883.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3"
+  }
+}
+

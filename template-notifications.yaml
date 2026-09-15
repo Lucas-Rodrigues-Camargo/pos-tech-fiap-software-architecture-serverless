@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Notificacoes assincronas de ordens de servico
+
+Parameters:
+  FromEmail: { Type: String }
+
+Resources:
+  NotificationDeadLetterQueue:
+    Type: AWS::SQS::Queue
+  NotificationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt NotificationDeadLetterQueue.Arn
+        maxReceiveCount: 3
+  NotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      CodeUri: .
+      Handler: functions/notifications/index.handler
+      Timeout: 10
+      MemorySize: 256
+      Tracing: Active
+      Environment:
+        Variables: { FROM_EMAIL: !Ref FromEmail }
+      Policies:
+        - SESCrudPolicy: { IdentityName: !Ref FromEmail }
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt NotificationQueue.Arn
+            BatchSize: 10
+            FunctionResponseTypes: [ReportBatchItemFailures]
+
+Outputs:
+  NotificationQueueUrl: { Value: !Ref NotificationQueue }
+  NotificationQueueArn: { Value: !GetAtt NotificationQueue.Arn }
+
