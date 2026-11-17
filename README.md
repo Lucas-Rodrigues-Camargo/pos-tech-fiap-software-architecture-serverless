@@ -1,5 +1,7 @@
 # Oficina Mecânica — Serverless
 
+> Fase 4: a autenticação passou a consultar o OS Service por HTTP. Configure CustomerApiUrl/CUSTOMER_API_URL apontando para POST /internal/auth/customers e InternalApiKey/INTERNAL_API_KEY com o mesmo segredo Internal__Key do OS. O acesso direto ao PostgreSQL foi removido do código; referências antigas a DATABASE_URL neste README pertencem à Fase 3 e não devem ser usadas no novo deploy.
+
 Repositório das duas funções serverless independentes da solução: autenticação de clientes por CPF e envio assíncrono de notificações de ordens de serviço.
 
 ## Arquitetura

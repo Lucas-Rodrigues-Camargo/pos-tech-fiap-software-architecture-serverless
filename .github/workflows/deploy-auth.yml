@@ -19,9 +19,10 @@ jobs:
         with: { role-to-assume: '${{ secrets.AWS_DEPLOY_ROLE_ARN }}', aws-region: us-east-1 }
       - run: sam build --template-file template-auth.yaml
       - env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CUSTOMER_API_URL: ${{ vars.CUSTOMER_API_URL }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
           JWT_KEY: ${{ secrets.JWT_KEY }}
           PRIVATE_SUBNET_IDS: ${{ vars.PRIVATE_SUBNET_IDS }}
           LAMBDA_SECURITY_GROUP_IDS: ${{ vars.LAMBDA_SECURITY_GROUP_IDS }}
-        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --stack-name oficina-auth --resolve-s3 --capabilities CAPABILITY_IAM --parameter-overrides DatabaseUrl="$DATABASE_URL" JwtKey="$JWT_KEY" PrivateSubnetIds="$PRIVATE_SUBNET_IDS" LambdaSecurityGroupIds="$LAMBDA_SECURITY_GROUP_IDS"
+        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --stack-name oficina-auth --resolve-s3 --capabilities CAPABILITY_IAM --parameter-overrides CustomerApiUrl="$CUSTOMER_API_URL" InternalApiKey="$INTERNAL_API_KEY" JwtKey="$JWT_KEY" PrivateSubnetIds="$PRIVATE_SUBNET_IDS" LambdaSecurityGroupIds="$LAMBDA_SECURITY_GROUP_IDS"
 
