@@ -1,8 +1,4 @@
 import jwt from "jsonwebtoken";
-import pg from "pg";
-
-const { Pool } = pg;
-let pool;
 
 export function normalizeCpf(value = "") {
   return String(value).replace(/\D/g, "");
@@ -28,30 +24,25 @@ function response(statusCode, body) {
   };
 }
 
-function database() {
-  pool ??= new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false },
-    max: 2,
-    connectionTimeoutMillis: 5000
-  });
-  return pool;
-}
-
 export function createHandler({ queryCustomer, signToken } = {}) {
-  const findCustomer = queryCustomer ?? (async (cpf) => {
-    const result = await database().query(
-      "select id, name, document, is_active from tb_customers where document = $1 limit 1",
-      [cpf]
-    );
-    return result.rows[0];
+  const findCustomer = queryCustomer ?? (async (cpf, correlationId) => {
+    if (!process.env.CUSTOMER_API_URL || !process.env.INTERNAL_API_KEY) throw new Error("OS API configuration required");
+    const result = await fetch(process.env.CUSTOMER_API_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Internal-Key": process.env.INTERNAL_API_KEY, "X-Correlation-ID": correlationId },
+      body: JSON.stringify({ cpf }),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (result.status === 404) return null;
+    if (!result.ok) throw new Error("OS service unavailable");
+    return result.json();
   });
 
   const sign = signToken ?? ((claims) => jwt.sign(claims, process.env.JWT_KEY, {
     algorithm: "HS256",
     issuer: process.env.JWT_ISSUER ?? "OficinaMecanica",
     audience: process.env.JWT_AUDIENCE ?? "OficinaMecanica.Customer",
-    expiresIn: process.env.JWT_EXPIRES_IN ?? "1h"
+    expiresIn: "1h"
   }));
 
   return async (event) => {
@@ -61,8 +52,8 @@ export function createHandler({ queryCustomer, signToken } = {}) {
       if (!isValidCpf(cpf)) return response(400, { error: "CPF inválido." });
       if (!process.env.JWT_KEY && !signToken) return response(500, { error: "Configuração de autenticação indisponível." });
 
-      const customer = await findCustomer(cpf);
-      if (!customer || customer.is_active === false) return response(401, { error: "Cliente inexistente ou inativo." });
+      const customer = await findCustomer(cpf, event?.requestContext?.requestId ?? crypto.randomUUID());
+      if (!customer || customer.is_active !== true) return response(401, { error: "Cliente inexistente ou inativo." });
 
       const expiresInSeconds = 3600;
       const token = sign({
